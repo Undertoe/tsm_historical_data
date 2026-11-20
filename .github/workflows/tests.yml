@@ -2,6 +2,8 @@ name: tests
 
 on:
   pull_request:
+  # Also called by snapshot.yml so a push to main is tested before it snapshots.
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,4 +18,5 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
+      # Keep serial: parallel (-j) runs can report "Unknown" and exit 0.
       - run: autest -D tests --sandbox "$RUNNER_TEMP/autest"

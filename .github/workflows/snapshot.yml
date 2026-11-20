@@ -12,9 +12,19 @@ permissions:
   actions: read
 
 jobs:
+  # Pushes to main (merges) must pass the test suite before snapshotting.
+  # Scheduled runs use code that already passed, so they skip it.
+  tests:
+    if: ${{ github.event_name == 'push' }}
+    uses: ./.github/workflows/tests.yml
+
   snapshot:
+    needs: tests
+    # Run when tests passed, or were skipped (scheduled run).
+    if: ${{ !cancelled() && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Worst case: every file times out on all 5 attempts (~27 min).
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -23,8 +33,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 tsm_snapshot.py fetch-previous --dest prev
 
+      # Runs even if fetch-previous crashed; a missing status is treated as a
+      # failed lookup (upload full set, fail the run).
       - name: Snapshot
         id: snapshot
+        if: ${{ !cancelled() }}
         run: python3 tsm_snapshot.py snapshot --out out --previous prev
 
       # Runs even when the snapshot step failed (partial run / lookup failure);
