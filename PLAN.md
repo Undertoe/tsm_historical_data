@@ -188,13 +188,62 @@ artifact quota. Change detection will usually make it less.
 - TSM may change format or stop publishing at any time. Column changes are
   captured, not rejected; a stop in publishing shows up as failed runs.
 
-## Stage 1 — Pipeline (this branch: `setup-pipeline`)
+## Stage 1 — Pipeline (done, merged in PR #1)
 
 - `tsm_snapshot.py` — `snapshot` (also the local mode) and `fetch-previous`.
 - AuTest functional tests in `tests/` against a local HTTP server serving
   sample CSVs.
-- `.github/workflows/` — scheduled + merge snapshot run; PR test run.
+- `.github/workflows/` — scheduled + merge snapshot run; PR test run. Pushes to
+  `main` run the AuTest suite first; a test failure skips the snapshot and
+  fails the run (email).
 - `README.md` — what it collects, bundle and manifest layout, how to download.
+
+Verified after merge (2026-11-20):
+
+- Merge run passed tests and uploaded `tsm-forever-us-20261120T002804Z`
+  (699,674 bytes, expires 2026-12-26 — 36-day retention confirmed).
+- Downloaded with `gh`; all 9 files matched their manifest checksums.
+- Still to confirm: the first scheduled run reads that artifact back
+  (log shows `Previous bundle: tsm-forever-us-20261120T002804Z`).
+
+## Pulling artifacts (current, manual)
+
+Uses the GitHub CLI (`gh`), logged in on the local machine. `gh run download`
+matches artifact names across all runs and strips GitHub's `.zip` wrapper,
+giving one folder per artifact:
+`<dir>/tsm-forever-us-<ts>/tsm-forever-us-<ts>.tar.xz`.
+
+Bundle names start with the UTC timestamp, so name patterns select by date.
+Add `--repo Undertoe/tsm_historical_data --dir <folder>` to each:
+
+| Want | Command |
+| --- | --- |
+| Everything unexpired | `gh run download --pattern 'tsm-forever-us-*'` |
+| One month | `gh run download --pattern 'tsm-forever-us-202611*'` |
+| One day | `gh run download --pattern 'tsm-forever-us-20261120*'` |
+| Day range (20th–26th) | `gh run download --pattern 'tsm-forever-us-2026112[0-6]*'` |
+| Specific bundles | `gh run download -n <name> -n <name>` |
+
+- Ranges crossing a month boundary need one `--pattern` per month.
+- No match fails with "no artifact matches any of the names or patterns
+  provided".
+- List what is available:
+  `gh api repos/Undertoe/tsm_historical_data/actions/artifacts --jq '.artifacts[] | select(.expired|not) | .name'`
+- Known rough edges: re-pulling re-downloads bundles already on disk; output
+  is foldered per artifact, not flat.
+
+## Next steps
+
+1. **Pull everything new since a given bundle.** Takes our "most recent"
+   bundle as a parameter and pulls the raw bundles for every newer artifact.
+2. **Pull only the single most recent artifact.**
+
+Open for both (not yet designed): how "most recent" is passed in (bundle name
+or timestamp), `gh` wrapper vs Python script, destination folder and layout.
+
+Minor: workflows log a Node.js 20 deprecation warning for `actions/checkout@v4`
+and `actions/setup-python@v5` (`upload-artifact@v4` likely too). Harmless now;
+bump to Node 24 majors (versions to verify first).
 
 ## Watch for later
 
