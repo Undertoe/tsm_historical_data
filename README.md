@@ -48,8 +48,15 @@ required file is listed with 64 zeros and is not in the tar. Sale-rate columns
 GitHub wraps each artifact in a `.zip`; the `.tar.xz` is inside.
 
 ```sh
+# everything unexpired
 gh run download --repo Undertoe/tsm_historical_data --pattern 'tsm-forever-us-*' --dir bundles
+
+# a date subset (names start with the UTC timestamp)
+gh run download --repo Undertoe/tsm_historical_data --pattern 'tsm-forever-us-202611*' --dir bundles
 ```
+
+Each artifact lands in its own folder: `bundles/<name>/<name>.tar.xz`. More
+patterns and known rough edges: [PLAN.md](PLAN.md#pulling-artifacts-current-manual).
 
 ## Local run
 
