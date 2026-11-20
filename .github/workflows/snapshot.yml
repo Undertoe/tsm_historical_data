@@ -1,0 +1,40 @@
+name: snapshot
+
+on:
+  schedule:
+    # 05:17, 11:17, 17:17, 23:17 UTC
+    - cron: "17 5,11,17,23 * * *"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch previous bundle manifest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tsm_snapshot.py fetch-previous --dest prev
+
+      - name: Snapshot
+        id: snapshot
+        run: python3 tsm_snapshot.py snapshot --out out --previous prev
+
+      # Runs even when the snapshot step failed (partial run / lookup failure);
+      # the script decides whether there is anything to upload.
+      - name: Upload bundle
+        if: ${{ !cancelled() && steps.snapshot.outputs.upload == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.snapshot.outputs.bundle_name }}
+          path: ${{ steps.snapshot.outputs.bundle_path }}
+          retention-days: 36
+          compression-level: 0
+          if-no-files-found: error
